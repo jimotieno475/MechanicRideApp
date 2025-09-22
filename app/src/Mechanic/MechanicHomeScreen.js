@@ -90,6 +90,26 @@ export default function MechanicHomeScreen() {
     );
   };
 
+  const handleComplete = (id) => {
+    Alert.alert(
+      "Mark Completed",
+      "Are you sure you want to mark this job as completed?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: () => {
+            const updatedRequests = requests.map(req =>
+              req.id === id ? { ...req, status: 'Completed' } : req
+            );
+            setRequests(updatedRequests);
+            Alert.alert("Job Completed", "You have successfully completed the job.");
+          }
+        }
+      ]
+    );
+  };
+
   const renderItem = ({ item }) => (
     <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
       {/* Header with status */}
@@ -98,12 +118,14 @@ export default function MechanicHomeScreen() {
         <View className={`px-2 py-1 rounded-xl ${
           item.status === 'Pending' ? 'bg-yellow-100' : 
           item.status === 'Accepted' ? 'bg-green-100' :
-          item.status === 'Rejected' ? 'bg-red-100' : ''
+          item.status === 'Rejected' ? 'bg-red-100' :
+          item.status === 'Completed' ? 'bg-blue-100' : ''
         }`}>
           <Text className={`text-xs font-semibold ${
             item.status === 'Pending' ? 'text-yellow-500' :
             item.status === 'Accepted' ? 'text-green-500' :
-            item.status === 'Rejected' ? 'text-red-500' : ''
+            item.status === 'Rejected' ? 'text-red-500' :
+            item.status === 'Completed' ? 'text-blue-500' : ''
           }`}>{item.status}</Text>
         </View>
       </View>
@@ -144,12 +166,13 @@ export default function MechanicHomeScreen() {
         <View className="flex-row justify-around mt-4">
           <TouchableOpacity 
             style={{backgroundColor: '#2196F3', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8}}
-            onPress={() => navigation.navigate("MapScreen", { task: item })}
+            onPress={() => navigation.navigate("MapScreen", { task: item, role: "mechanic" })}
           >
             <Text className="text-white font-bold">View on Map</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={{backgroundColor: '#4CAF50', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8}}
+            onPress={() => handleComplete(item.id)}
           >
             <Text className="text-white font-bold">Mark Completed</Text>
           </TouchableOpacity>

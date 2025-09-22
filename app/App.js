@@ -11,8 +11,9 @@ import UserTabs from './src/navigation/UserTabs';
 import MechanicTabs from './src/navigation/MechanicTabs';
 import MechanicDashboard from './src/screens/MechanicDashboard';
 import UserProfile from './src/User/UserProfile';
-import LoginPage from "./src/screens/LoginScreen";
-import SignupPage from "./src/screens/SignupScreen";
+import LoginPage from './src/Auth/LoginScreen';
+import SignupPage from './src/Auth/SignupScreen';
+import MechanicSignupPage from './src/Auth/MechanicSignupPage';
 import AdminDashboard from './src/admin/AdminDashboard'; // Import the AdminDashboard component
 import SplashScreen from "./src/screens/SplashScreen"; // Import the new SplashScreen component
 import SettingsScreen from './src/User/SettingsScreen';
@@ -23,6 +24,7 @@ import TermsOfServiceScreen from './src/screens/TermsOfServiceScreen';
 import ContactSupportScreen from './src/screens/ContactSupportScreen';
 import HelpCenterScreen from './src/screens/HelpCenterScreen';
 import MechanicHomeScreen from './src/Mechanic/MechanicHomeScreen';
+import JobsAdmin from './src/admin/JobsAdmin';
 
 
 const Stack = createNativeStackNavigator();
@@ -35,6 +37,7 @@ export default function App() {
           <Stack.Screen name="SplashScreen" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginPage} />
           <Stack.Screen name="Signup" component={SignupPage} />
+          <Stack.Screen name="MechanicSignup" component={MechanicSignupPage} />
           <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
           <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
           <Stack.Screen name="ContactSupport" component={ContactSupportScreen} />
@@ -52,6 +55,7 @@ export default function App() {
           <Stack.Screen name="MechanicSettings" component={MechanicSettings} />
           <Stack.Screen name="UserProfile" component={UserProfile} />
           <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+          <Stack.Screen name="JobsAdmin" component={JobsAdmin} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

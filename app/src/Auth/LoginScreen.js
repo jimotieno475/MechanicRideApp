@@ -94,6 +94,15 @@ export default function LoginPage() {
             Don't have an account? <Text className="font-semibold underline">Sign up here</Text>
           </Text>
         </TouchableOpacity>
+
+                <TouchableOpacity
+          className="w-full mt-8"
+          onPress={() => navigation.navigate('MechanicSignup')}
+        >
+          <Text className="text-white text-center text-sm">
+            Register as a mechanic <Text className="font-semibold underline">Register here</Text>
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );

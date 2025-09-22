@@ -23,7 +23,7 @@ const carProblems = [
   { id: 1, title: "Flat Tire", issue: "tyre" },
   { id: 2, title: "Engine Trouble", issue: "engine" },
   { id: 3, title: "Battery Dead", issue: "battery" },
-  { id: 4, title: "Brake Issue", issue: "brakes" },
+  { id: 4, title: "Other issue", issue: "other" },
 ];
 
 function HomeScreen() {
@@ -48,6 +48,12 @@ function HomeScreen() {
 
   // when user selects a car issue
   const handleProblemSelect = (problem) => {
+        if (problem.issue === "other") {
+      // 👇 Navigate to Services page if "Different Problem" is selected
+      navigation.navigate("Services");
+      return;
+    }
+
     setSelectedProblem(problem);
 
     const mechanic = MECHANICS.find((m) =>
@@ -71,6 +77,7 @@ function HomeScreen() {
         latitude: nearestMechanic.lat,
         longitude: nearestMechanic.lng,
       },
+      role: "user", // 👈 Ensure role is passed
     });
 
     setModalVisible(false);

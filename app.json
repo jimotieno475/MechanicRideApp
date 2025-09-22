@@ -17,6 +17,11 @@
       "bundleIdentifier": "com.anonymous.mech",
       "config": {
         "googleMapsApiKey": "AIzaSyCgwyuVt5ITQ5zNHcPQCPPS_gs9VXNi3CY"
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to allow mechanics to upload profile photos and shop documents.",
+        "NSPhotoLibraryUsageDescription": "This app requires access to your photo library to select profile and document images.",
+        "NSLocationWhenInUseUsageDescription": "This app needs your location to let users find your mechanic shop easily."
       }
     },
     "android": {
@@ -29,10 +34,31 @@
         "googleMaps": {
           "apiKey": "AIzaSyCgwyuVt5ITQ5zNHcPQCPPS_gs9VXNi3CY"
         }
-      }
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let mechanics upload their profile and shop documents."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Mech to access your location so users can navigate to your shop."
+        }
+      ]
+    ]
   }
 }

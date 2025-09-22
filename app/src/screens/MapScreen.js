@@ -4,10 +4,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { View, TextInput, TouchableOpacity, Text } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
+import { useRoute } from "@react-navigation/native";
 
-const GOOGLE_MAPS_APIKEY = "AIzaSyCgwyuVt5ITQ5zNHcPQCPPS_gs9VXNi3CY";
+const GOOGLE_MAPS_APIKEY = "YOUR_GOOGLE_MAPS_API_KEY";
 
-export default function MapScreen({ route }) {
+export default function MapScreen() {
+  const route = useRoute();
+  const { task, role } = route.params || {};
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState({
     latitude: -1.28333,
@@ -15,10 +18,8 @@ export default function MapScreen({ route }) {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
-
-  const { task, role } = route.params || {};
   const [destination, setDestination] = useState(null);
-  const [bookingMessage, setBookingMessage] = useState(""); // Booking alert message
+  const [bookingMessage, setBookingMessage] = useState("");
 
   // Example mechanics
   const mechanics = [
@@ -59,8 +60,13 @@ export default function MapScreen({ route }) {
     }
   };
 
-  const handleBooking = () => {
-    setBookingMessage("✅ The mechanic has received your booking. Please wait for them to accept.");
+  const handleBookingAction = () => {
+    if (role === "user") {
+      setBookingMessage("✅ The mechanic has received your booking. Please wait for them to accept.");
+    } else if (role === "mechanic") {
+      setBookingMessage("✅ You have accepted the booking. Please contact the customer.");
+    }
+
     // Hide after 10 seconds
     setTimeout(() => setBookingMessage(""), 10000);
   };
@@ -129,12 +135,16 @@ export default function MapScreen({ route }) {
 
           <Text className="text-gray-700 mt-2">🚗 Directions drawn on map</Text>
 
-          {/* Book Mechanic Button */}
+          {/* Action Button */}
           <TouchableOpacity
-            onPress={handleBooking}
-            className="mt-3 bg-green-600 py-3 rounded-lg"
+            onPress={handleBookingAction}
+            className={`mt-3 py-3 rounded-lg ${
+              role === "user" ? "bg-green-600" : "bg-blue-600"
+            }`}
           >
-            <Text className="text-white text-center font-semibold">Book Mechanic</Text>
+            <Text className="text-white text-center font-semibold">
+              {role === "user" ? "Book Mechanic" : "Accept Booking"}
+            </Text>
           </TouchableOpacity>
 
           {/* Temporary booking message */}
@@ -148,6 +158,7 @@ export default function MapScreen({ route }) {
     </SafeAreaView>
   );
 }
+
 
 
 // // File: src/screens/MapScreen.js

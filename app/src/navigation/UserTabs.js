@@ -105,7 +105,7 @@ export default function UserTabs() {
           
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#3b82f6',
+        tabBarActiveTintColor: '#000000',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
       })}
