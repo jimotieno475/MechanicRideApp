@@ -143,7 +143,7 @@ export default function MapScreen() {
             }`}
           >
             <Text className="text-white text-center font-semibold">
-              {role === "user" ? "Book Mechanic" : "Accept Booking"}
+              {role === "user" ? "Order Mechanic" : "Accept Order"}
             </Text>
           </TouchableOpacity>
 
