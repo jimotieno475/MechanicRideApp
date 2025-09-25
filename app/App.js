@@ -25,6 +25,9 @@ import ContactSupportScreen from './src/screens/ContactSupportScreen';
 import HelpCenterScreen from './src/screens/HelpCenterScreen';
 import MechanicHomeScreen from './src/Mechanic/MechanicHomeScreen';
 import JobsAdmin from './src/admin/JobsAdmin';
+import UserMapScreen from './src/User/UserMapScreen';
+import MechanicMapScreen from './src/Mechanic/MechanicMapScreen';
+import { UserProvider } from './src/contexts/UserContext';
 
 
 const Stack = createNativeStackNavigator();
@@ -32,6 +35,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <SafeAreaProvider>
+      <UserProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="SplashScreen" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="SplashScreen" component={SplashScreen} />
@@ -49,6 +53,8 @@ export default function App() {
           <Stack.Screen name="MechanicProfile" component={MechanicProfile} />
           <Stack.Screen name="AdminTabs" component={AdminTabs} />
           <Stack.Screen name="UserTabs" component={UserTabs} />
+          <Stack.Screen name="MechanicMapScreen" component={MechanicMapScreen} options={{ title: "Select Location" }} />
+          <Stack.Screen name="UserMapScreen" component={UserMapScreen} options={{ title: "Select Location" }} />
           <Stack.Screen name="MechanicTabs" component={MechanicTabs} />
           <Stack.Screen name="MechanicDashboard" component={MechanicDashboard} />
           <Stack.Screen name="MechanicServices" component={MechanicServicesScreen} />
@@ -56,8 +62,10 @@ export default function App() {
           <Stack.Screen name="UserProfile" component={UserProfile} />
           <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
           <Stack.Screen name="JobsAdmin" component={JobsAdmin} />
+
         </Stack.Navigator>
       </NavigationContainer>
+      </UserProvider>
     </SafeAreaProvider>
   );
 }

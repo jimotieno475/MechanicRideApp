@@ -6,17 +6,20 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+
     "assetBundlePatterns": [
       "**/*"
     ],
+
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.mech",
+      "bundleIdentifier": "com.mackx6.mech",
       "config": {
         "googleMapsApiKey": "AIzaSyCgwyuVt5ITQ5zNHcPQCPPS_gs9VXNi3CY"
       },
@@ -26,29 +29,33 @@
         "NSLocationWhenInUseUsageDescription": "This app needs your location to let users find your mechanic shop easily."
       }
     },
+
     "android": {
+      "package": "com.mackx6.mech",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.mech",
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyCgwyuVt5ITQ5zNHcPQCPPS_gs9VXNi3CY"
         }
-      },
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.RECORD_AUDIO"
-      ]
+      }
     },
+
     "web": {
       "favicon": "./assets/favicon.png"
     },
+
     "plugins": [
       [
         "expo-image-picker",
@@ -63,6 +70,7 @@
         }
       ]
     ],
+
     "extra": {
       "eas": {
         "projectId": "4085d86c-7b16-4fd3-832a-95ec25a34539"

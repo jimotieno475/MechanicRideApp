@@ -1,9 +1,11 @@
+// File: src/navigation/UserTabs.js
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-// Import user screens (only the ones you have)
+
+// Import your user screens
 import HomeScreen from '../User/HomeScreen';
 import ServicesScreen from '../User/ServicesScreen';
 import ActivityScreen from '../User/ActivityScreen';
@@ -12,112 +14,121 @@ import UserProfile from '../User/UserProfile';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Home Stack Navigator
-function HomeStack() {
+// ----------------------
+// Home Stack
+// ----------------------
+function HomeStack({ route }) {
+  const { user } = route.params || {}; // receive user from login
+
   return (
-    <Stack.Navigator 
-      screenOptions={{ 
-        headerStyle: { backgroundColor: 'black' }, 
-        headerTintColor: 'white' 
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: 'black' },
+        headerTintColor: 'white',
       }}
     >
-      <Stack.Screen 
-        name="HomeScreen" 
-        component={HomeScreen} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name="HomeScreen"
+        component={HomeScreen}
+        options={{ headerShown: false }}
+        initialParams={{ user }} // pass user to HomeScreen
       />
     </Stack.Navigator>
   );
 }
 
-// Services Stack Navigator
+// ----------------------
+// Services Stack
+// ----------------------
 function ServicesStack() {
   return (
-    <Stack.Navigator 
-      screenOptions={{ 
-        headerStyle: { backgroundColor: 'black' }, 
-        headerTintColor: 'white' 
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: 'black' },
+        headerTintColor: 'white',
       }}
     >
-      <Stack.Screen 
-        name="ServicesScreen" 
-        component={ServicesScreen} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name="ServicesScreen"
+        component={ServicesScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
 }
 
-// Activity Stack Navigator
+// ----------------------
+// Activity Stack
+// ----------------------
 function ActivityStack() {
   return (
-    <Stack.Navigator 
-      screenOptions={{ 
-        headerStyle: { backgroundColor: 'black' }, 
-        headerTintColor: 'white' 
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: 'black' },
+        headerTintColor: 'white',
       }}
     >
-      <Stack.Screen 
-        name="ActivityScreen" 
-        component={ActivityScreen} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name="ActivityScreen"
+        component={ActivityScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
 }
 
-// Profile Stack Navigator
+// ----------------------
+// Profile Stack
+// ----------------------
 function ProfileStack() {
   return (
-    <Stack.Navigator 
-      screenOptions={{ 
-        headerStyle: { backgroundColor: 'black' }, 
-        headerTintColor: 'white' 
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: 'black' },
+        headerTintColor: 'white',
       }}
     >
-      <Stack.Screen 
-        name="UserProfileScreen" 
-        component={UserProfile} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name="UserProfileScreen"
+        component={UserProfile}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
 }
 
-// Main User Tabs Navigator
-export default function UserTabs() {
+// ----------------------
+// Main User Tabs
+// ----------------------
+export default function UserTabs({ route }) {
+  const { user } = route.params || {}; // user object from LoginPage
+
   return (
     <SafeAreaProvider>
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-          
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Services') {
-            iconName = focused ? 'construct' : 'construct-outline';
-          } else if (route.name === 'Activity') {
-            iconName = focused ? 'list' : 'list-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
-          
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: '#000000',
-        tabBarInactiveTintColor: 'gray',
-        headerShown: false,
-      })}
-    >
-      <Tab.Screen name="Home" component={HomeStack} />
-      <Tab.Screen name="Services" component={ServicesStack} />
-      <Tab.Screen name="Activity" component={ActivityStack} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
-    </Tab.Navigator>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName;
+            if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+            else if (route.name === 'Services') iconName = focused ? 'construct' : 'construct-outline';
+            else if (route.name === 'Activity') iconName = focused ? 'list' : 'list-outline';
+            else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: '#000000',
+          tabBarInactiveTintColor: 'gray',
+          headerShown: false,
+        })}
+      >
+        <Tab.Screen name="Home" component={HomeStack} initialParams={{ user }} />
+        <Tab.Screen name="Services" component={ServicesStack} />
+        <Tab.Screen name="Activity" component={ActivityStack} />
+        <Tab.Screen name="Profile" component={ProfileStack} />
+      </Tab.Navigator>
     </SafeAreaProvider>
   );
 }
+
 
 
 

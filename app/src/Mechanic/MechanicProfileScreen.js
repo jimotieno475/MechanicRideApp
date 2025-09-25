@@ -1,31 +1,85 @@
 // File: src/Mechanic/MechanicProfileScreen.js
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Pressable, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../contexts/UserContext';
+import { API_URL } from '../config';
+
+// Avatar Component
+const Avatar = ({ size = 64, name = "User", className = "" }) => {
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+  
+  return (
+    <View 
+      className={`bg-blue-500 rounded-full items-center justify-center ${className}`}
+      style={{ width: size, height: size }}
+    >
+      <Text className="text-white font-bold" style={{ fontSize: size * 0.4 }}>
+        {initials}
+      </Text>
+    </View>
+  );
+};
 
 export default function MechanicProfileScreen() {
   const navigation = useNavigation();
+  const { mechanic: contextMechanic, setMechanic } = useUser();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [mechanicData, setMechanicData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Mock mechanic data
-  const mechanicData = {
-    name: 'Ogute Okwach',
-    age: 34,
-    email: 'Ogutekenya1@gmail.com',
-    phone: '0714567890',
-    address: '123 Main St, Nairobi, Kenya',
-    rating: 4.8,
-    jobsCompleted: 46,
-    profileImage: 'https://randomuser.me/api/portraits/men/44.jpg',
-    shopName: 'Doe Auto Garage',
-    shopLocation: 'Industrial Area, Nairobi',
-    aboutShop: 'We specialize in car engine repair, diagnostics, and general servicing. Serving Nairobi customers with trust and excellence for over 10 years.',
+  // Fetch mechanic details from backend
+  useEffect(() => {
+    if (contextMechanic?.id) {
+      fetchMechanicData();
+    }
+  }, [contextMechanic?.id]);
+
+  const fetchMechanicData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/mechanics/${contextMechanic.id}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+          console.log('🔍 Full mechanic data from backend:', data);
+    console.log('🔍 Phone field value:', data.mechanic?.phone);
+    console.log('🔍 Phone field type:', typeof data.mechanic?.phone);
+      setMechanicData(data.mechanic);
+    } catch (error) {
+      console.error('Error fetching mechanic data:', error);
+      Alert.alert('Error', 'Failed to load profile data');
+      // Fallback to context data if available
+      if (contextMechanic) {
+        setMechanicData({
+          ...contextMechanic,
+          jobsCompleted: 0, // Default value
+          rating: 0, // Default value
+          aboutShop: contextMechanic.garage_location ? 
+            `Professional auto services at ${contextMechanic.garage_location}` : 
+            'Professional auto services'
+        });
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchMechanicData();
   };
 
   const confirmLogout = () => {
     setShowLogoutConfirm(false);
+    setMechanic(null); // Clear mechanic from context
     navigation.replace('Login'); 
   };
 
@@ -42,31 +96,79 @@ export default function MechanicProfileScreen() {
     }
   };
 
+  // Use context data as fallback while loading
+  const displayData = mechanicData || contextMechanic;
+
+  if (loading && !displayData) {
+    return (
+      <View className="flex-1 bg-white justify-center items-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text className="text-gray-600 mt-4">Loading profile...</Text>
+      </View>
+    );
+  }
+
+  if (!displayData) {
+    return (
+      <View className="flex-1 bg-white justify-center items-center px-8">
+        <Ionicons name="alert-circle-outline" size={64} color="#6b7280" />
+        <Text className="text-gray-600 text-lg text-center mt-4">
+          Unable to load profile data. Please try again.
+        </Text>
+        <TouchableOpacity 
+          className="bg-blue-500 px-6 py-3 rounded-lg mt-6"
+          onPress={handleRefresh}
+        >
+          <Text className="text-white font-semibold">Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-white">
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        className="flex-1 px-5" 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#3b82f6']}
+          />
+        }
+      >
         {/* Profile Card */}
         <View className="bg-white rounded-lg shadow-sm border border-gray-100 mt-5 p-5">
           <View className="flex-row items-center">
-            <Image
-              source={{ uri: mechanicData.profileImage }}
-              className="w-16 h-16 rounded-full mr-4"
-              accessibilityLabel="Mechanic profile picture"
-            />
-            <View>
-              <Text className="text-black text-xl font-semibold">{mechanicData.name}</Text>
+            <Avatar name={displayData.name} size={64} className="mr-4" />
+            <View className="flex-1">
+              <Text className="text-black text-xl font-semibold">{displayData.name}</Text>
               <Text className="text-gray-600 text-sm">Expert Mechanic</Text>
+              {displayData.garage_name && (
+                <Text className="text-gray-500 text-sm mt-1">{displayData.garage_name}</Text>
+              )}
             </View>
           </View>
 
           <View className="flex-row justify-between mt-6">
             <View className="items-center">
-              <Text className="text-black text-2xl font-bold">{mechanicData.jobsCompleted}</Text>
+              <Text className="text-black text-2xl font-bold">
+                {mechanicData?.jobsCompleted || 0}
+              </Text>
               <Text className="text-gray-500 text-xs">Jobs</Text>
             </View>
             <View className="items-center">
-              <Text className="text-black text-2xl font-bold">{mechanicData.rating}</Text>
+              <Text className="text-black text-2xl font-bold">
+                {mechanicData?.rating || '4.8'}
+              </Text>
               <Text className="text-gray-500 text-xs">Rating</Text>
+            </View>
+            <View className="items-center">
+              <Text className="text-black text-2xl font-bold">
+                {displayData.status === 'online' ? 'Online' : 'Offline'}
+              </Text>
+              <Text className="text-gray-500 text-xs">Status</Text>
             </View>
           </View>
         </View>
@@ -75,9 +177,20 @@ export default function MechanicProfileScreen() {
         <View className="mt-6">
           <Text className="text-black text-lg font-semibold mb-3">Shop Information</Text>
           <View className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-            <Text className="text-black text-base font-semibold">{mechanicData.shopName}</Text>
-            <Text className="text-gray-600 mt-1">{mechanicData.shopLocation}</Text>
-            <Text className="text-gray-700 mt-3 leading-5">{mechanicData.aboutShop}</Text>
+            <Text className="text-black text-base font-semibold">
+              {displayData.garage_name || 'My Auto Garage'}
+            </Text>
+            <Text className="text-gray-600 mt-1">
+              {displayData.garage_location || 'Location not specified'}
+            </Text>
+            <Text className="text-gray-700 mt-3 leading-5">
+              {mechanicData?.aboutShop || 
+                (displayData.garage_location ? 
+                  `Professional auto services at ${displayData.garage_location}` : 
+                  'Professional auto services with quality and reliability'
+                )
+              }
+            </Text>
           </View>
         </View>
 
@@ -91,7 +204,7 @@ export default function MechanicProfileScreen() {
                 <Ionicons name="mail-outline" size={20} color="#4B5563" />
                 <Text className="text-gray-700 ml-3">Email</Text>
               </View>
-              <Text className="text-black">{mechanicData.email}</Text>
+              <Text className="text-black">{displayData.email}</Text>
             </View>
             
             <View className="flex-row justify-between items-center py-4 px-5 border-b border-gray-100">
@@ -99,18 +212,36 @@ export default function MechanicProfileScreen() {
                 <Ionicons name="call-outline" size={20} color="#4B5563" />
                 <Text className="text-gray-700 ml-3">Phone</Text>
               </View>
-              <Text className="text-black">{mechanicData.phone}</Text>
+              <Text className="text-black">{displayData.phone || 'Not provided'}</Text>
             </View>
             
             <View className="flex-row justify-between items-center py-4 px-5">
               <View className="flex-row items-center">
                 <Ionicons name="location-outline" size={20} color="#4B5563" />
-                <Text className="text-gray-700 ml-3">Address</Text>
+                <Text className="text-gray-700 ml-3">Garage Location</Text>
               </View>
-              <Text className="text-black">{mechanicData.address}</Text>
+              <Text className="text-black text-right flex-1 ml-2">
+                {displayData.garage_location || 'Not specified'}
+              </Text>
             </View>
           </View>
         </View>
+
+        {/* Services Offered */}
+        {mechanicData?.services_offered?.length > 0 && (
+          <View className="mt-6">
+            <Text className="text-black text-lg font-semibold mb-3">Services Offered</Text>
+            <View className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+              <View className="flex-row flex-wrap">
+                {mechanicData.services_offered.map((service, index) => (
+                  <View key={index} className="bg-blue-50 px-3 py-1 rounded-full mr-2 mb-2">
+                    <Text className="text-blue-700 text-sm">{service.name || service}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Quick Actions */}
         <View className="mt-6">
@@ -136,9 +267,11 @@ export default function MechanicProfileScreen() {
 
             {showPersonalInfo && (
               <View className="px-6 py-3 bg-gray-50">
-                <Text className="text-gray-700">Name: {mechanicData.name}</Text>
-                <Text className="text-gray-700 mt-1">Age: {mechanicData.age}</Text>
-                <Text className="text-gray-700 mt-1">Contact: {mechanicData.phone}</Text>
+                <Text className="text-gray-700">Name: {displayData.name}</Text>
+                <Text className="text-gray-700 mt-1">Email: {displayData.email}</Text>
+                <Text className="text-gray-700 mt-1">Phone: {displayData.phone || 'Not provided'}</Text>
+                <Text className="text-gray-700 mt-1">Garage: {displayData.garage_name || 'Not specified'}</Text>
+                <Text className="text-gray-700 mt-1">Status: {displayData.status || 'Active'}</Text>
               </View>
             )}
 
@@ -218,3 +351,223 @@ export default function MechanicProfileScreen() {
     </View>
   );
 }
+// // File: src/Mechanic/MechanicProfileScreen.js
+// import React, { useState } from 'react';
+// import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Pressable } from 'react-native';
+// import { Ionicons } from '@expo/vector-icons';
+// import { useNavigation } from '@react-navigation/native';
+
+// export default function MechanicProfileScreen() {
+//   const navigation = useNavigation();
+//   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+//   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+
+//   // Mock mechanic data
+//   const mechanicData = {
+//     name: 'Ogute Okwach',
+//     age: 34,
+//     email: 'Ogutekenya1@gmail.com',
+//     phone: '0714567890',
+//     address: '123 Main St, Nairobi, Kenya',
+//     rating: 4.8,
+//     jobsCompleted: 46,
+//     profileImage: 'https://randomuser.me/api/portraits/men/44.jpg',
+//     shopName: 'Doe Auto Garage',
+//     shopLocation: 'Industrial Area, Nairobi',
+//     aboutShop: 'We specialize in car engine repair, diagnostics, and general servicing. Serving Nairobi customers with trust and excellence for over 10 years.',
+//   };
+
+//   const confirmLogout = () => {
+//     setShowLogoutConfirm(false);
+//     navigation.replace('Login'); 
+//   };
+
+//   const handleQuickActionPress = (action) => {
+//     switch(action) {
+//       case 'MyServices':
+//         navigation.navigate('MechanicServices'); 
+//         break;
+//       case 'Settings':
+//         navigation.navigate('MechanicSettings');
+//         break;
+//       default:
+//         break;
+//     }
+//   };
+
+//   return (
+//     <View className="flex-1 bg-white">
+//       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
+//         {/* Profile Card */}
+//         <View className="bg-white rounded-lg shadow-sm border border-gray-100 mt-5 p-5">
+//           <View className="flex-row items-center">
+//             <Image
+//               source={{ uri: mechanicData.profileImage }}
+//               className="w-16 h-16 rounded-full mr-4"
+//               accessibilityLabel="Mechanic profile picture"
+//             />
+//             <View>
+//               <Text className="text-black text-xl font-semibold">{mechanicData.name}</Text>
+//               <Text className="text-gray-600 text-sm">Expert Mechanic</Text>
+//             </View>
+//           </View>
+
+//           <View className="flex-row justify-between mt-6">
+//             <View className="items-center">
+//               <Text className="text-black text-2xl font-bold">{mechanicData.jobsCompleted}</Text>
+//               <Text className="text-gray-500 text-xs">Jobs</Text>
+//             </View>
+//             <View className="items-center">
+//               <Text className="text-black text-2xl font-bold">{mechanicData.rating}</Text>
+//               <Text className="text-gray-500 text-xs">Rating</Text>
+//             </View>
+//           </View>
+//         </View>
+
+//         {/* Shop Information */}
+//         <View className="mt-6">
+//           <Text className="text-black text-lg font-semibold mb-3">Shop Information</Text>
+//           <View className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+//             <Text className="text-black text-base font-semibold">{mechanicData.shopName}</Text>
+//             <Text className="text-gray-600 mt-1">{mechanicData.shopLocation}</Text>
+//             <Text className="text-gray-700 mt-3 leading-5">{mechanicData.aboutShop}</Text>
+//           </View>
+//         </View>
+
+//         {/* Account Details */}
+//         <View className="mt-6">
+//           <Text className="text-black text-lg font-semibold mb-3">Account Details</Text>
+          
+//           <View className="bg-white rounded-lg shadow-sm border border-gray-100">
+//             <View className="flex-row justify-between items-center py-4 px-5 border-b border-gray-100">
+//               <View className="flex-row items-center">
+//                 <Ionicons name="mail-outline" size={20} color="#4B5563" />
+//                 <Text className="text-gray-700 ml-3">Email</Text>
+//               </View>
+//               <Text className="text-black">{mechanicData.email}</Text>
+//             </View>
+            
+//             <View className="flex-row justify-between items-center py-4 px-5 border-b border-gray-100">
+//               <View className="flex-row items-center">
+//                 <Ionicons name="call-outline" size={20} color="#4B5563" />
+//                 <Text className="text-gray-700 ml-3">Phone</Text>
+//               </View>
+//               <Text className="text-black">{mechanicData.phone}</Text>
+//             </View>
+            
+//             <View className="flex-row justify-between items-center py-4 px-5">
+//               <View className="flex-row items-center">
+//                 <Ionicons name="location-outline" size={20} color="#4B5563" />
+//                 <Text className="text-gray-700 ml-3">Address</Text>
+//               </View>
+//               <Text className="text-black">{mechanicData.address}</Text>
+//             </View>
+//           </View>
+//         </View>
+
+//         {/* Quick Actions */}
+//         <View className="mt-6">
+//           <Text className="text-black text-lg font-semibold mb-3">Quick Actions</Text>
+          
+//           <View className="bg-white rounded-lg shadow-sm border border-gray-100">
+//             {/* Personal Info Expandable */}
+//             <TouchableOpacity
+//               activeOpacity={0.7}
+//               onPress={() => setShowPersonalInfo(!showPersonalInfo)}
+//               className="flex-row justify-between items-center py-4 px-5 border-b border-gray-100"
+//             >
+//               <View className="flex-row items-center">
+//                 <Ionicons name="person-outline" size={20} color="#4B5563" />
+//                 <Text className="text-gray-700 ml-3">Personal Information</Text>
+//               </View>
+//               <Ionicons 
+//                 name={showPersonalInfo ? "chevron-down" : "chevron-forward"} 
+//                 size={20} 
+//                 color="#4B5563" 
+//               />
+//             </TouchableOpacity>
+
+//             {showPersonalInfo && (
+//               <View className="px-6 py-3 bg-gray-50">
+//                 <Text className="text-gray-700">Name: {mechanicData.name}</Text>
+//                 <Text className="text-gray-700 mt-1">Age: {mechanicData.age}</Text>
+//                 <Text className="text-gray-700 mt-1">Contact: {mechanicData.phone}</Text>
+//               </View>
+//             )}
+
+//             {/* My Services */}
+//             <TouchableOpacity
+//               activeOpacity={0.7}
+//               onPress={() => handleQuickActionPress('MyServices')}
+//               className="flex-row justify-between items-center py-4 px-5 border-b border-gray-100"
+//             >
+//               <View className="flex-row items-center">
+//                 <Ionicons name="build-outline" size={20} color="#4B5563" />
+//                 <Text className="text-gray-700 ml-3">My Services</Text>
+//               </View>
+//               <Ionicons name="chevron-forward" size={20} color="#4B5563" />
+//             </TouchableOpacity>
+
+//             {/* Settings */}
+//             <TouchableOpacity
+//               activeOpacity={0.7}
+//               onPress={() => handleQuickActionPress('Settings')}
+//               className="flex-row justify-between items-center py-4 px-5"
+//             >
+//               <View className="flex-row items-center">
+//                 <Ionicons name="settings-outline" size={20} color="#4B5563" />
+//                 <Text className="text-gray-700 ml-3">Settings</Text>
+//               </View>
+//               <Ionicons name="chevron-forward" size={20} color="#4B5563" />
+//             </TouchableOpacity>
+//           </View>
+//         </View>
+
+//         {/* Logout Button */}
+//         <TouchableOpacity 
+//           activeOpacity={0.7}
+//           className="flex-row items-center justify-center py-4 bg-red-50 rounded-lg mt-6 mb-8 border border-red-100"
+//           onPress={() => setShowLogoutConfirm(true)}
+//         >
+//           <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+//           <Text className="text-red-600 font-semibold ml-2">Logout</Text>
+//         </TouchableOpacity>
+//       </ScrollView>
+
+//       {/* Logout Confirmation Modal */}
+//       <Modal
+//         transparent
+//         visible={showLogoutConfirm}
+//         animationType="fade"
+//         onRequestClose={() => setShowLogoutConfirm(false)}
+//       >
+//         <Pressable
+//           className="flex-1 bg-black/50 justify-center items-center"
+//           onPress={() => setShowLogoutConfirm(false)}
+//         >
+//           <View className="w-64 bg-white rounded-lg p-4 space-y-3">
+//             <Text className="text-center text-lg font-semibold text-gray-800">
+//               Are you sure you want to logout?
+//             </Text>
+//             <View className="flex-row justify-between">
+//               <TouchableOpacity
+//                 activeOpacity={0.7}
+//                 className="px-6 py-3 bg-gray-200 rounded-md"
+//                 onPress={() => setShowLogoutConfirm(false)}
+//               >
+//                 <Text className="text-center font-semibold text-gray-800">Cancel</Text>
+//               </TouchableOpacity>
+//               <TouchableOpacity
+//                 activeOpacity={0.7}
+//                 className="px-6 py-3 bg-red-600 rounded-md"
+//                 onPress={confirmLogout}
+//               >
+//                 <Text className="text-center font-semibold text-white">Logout</Text>
+//               </TouchableOpacity>
+//             </View>
+//           </View>
+//         </Pressable>
+//       </Modal>
+//     </View>
+//   );
+// }

@@ -1,163 +1,289 @@
-// File: src/screens/MapScreen.js
-import React, { useState, useEffect } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { View, TextInput, TouchableOpacity, Text } from "react-native";
-import MapView, { Marker } from "react-native-maps";
-import MapViewDirections from "react-native-maps-directions";
-import { useRoute } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, Alert, Platform } from "react-native";
+import * as Location from "expo-location";
+import { API_URL } from "../config";
 
-const GOOGLE_MAPS_APIKEY = "YOUR_GOOGLE_MAPS_API_KEY";
+// const API_URL = "http://127.0.0.1:5000"; // replace with your backend URL
 
-export default function MapScreen() {
-  const route = useRoute();
-  const { task, role } = route.params || {};
-  const [query, setQuery] = useState("");
+// Platform-specific imports
+let MapView, Marker;
+
+if (Platform.OS === 'web') {
+  MapView = require('react-native-web-maps').default;
+  Marker = require('react-native-web-maps').Marker;
+} else {
+  MapView = require("react-native-maps").default;
+  Marker = require("react-native-maps").Marker;
+}
+
+export default function MapScreen({ route }) {
+  const { task, service } = route.params;  // either one will exist
+  const current = task || service;
+
   const [region, setRegion] = useState({
-    latitude: -1.28333,
-    longitude: 36.81667,
+    latitude: current.latitude || 0,
+    longitude: current.longitude || 0,
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
-  const [destination, setDestination] = useState(null);
+  const [mechanic, setMechanic] = useState(null);
   const [bookingMessage, setBookingMessage] = useState("");
 
-  // Example mechanics
-  const mechanics = [
-    { id: 1, name: "Alex Garage", lat: -1.29, lng: 36.82, issues: ["flat tire", "engine"] },
-    { id: 2, name: "Nairobi Mechs", lat: -1.30, lng: 36.81, issues: ["battery", "brakes"] },
-  ];
-
   useEffect(() => {
-    if (task) {
-      setRegion({
-        latitude: task.latitude,
-        longitude: task.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
-      setDestination({ latitude: task.latitude, longitude: task.longitude });
-    }
-  }, [task]);
-
-  const handleSearch = async () => {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-      query
-    )}&key=${GOOGLE_MAPS_APIKEY}`;
-
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.results.length > 0) {
-        const { lat, lng } = data.results[0].geometry.location;
+    (async () => {
+      if (!current.latitude || !current.longitude) {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Permission Denied", "Allow location access to use this feature.");
+          return;
+        }
+        let loc = await Location.getCurrentPositionAsync({});
         setRegion({
-          ...region,
-          latitude: lat,
-          longitude: lng,
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
         });
       }
-    } catch (error) {
-      console.error("Error fetching location:", error);
-    }
-  };
+    })();
+  }, []);
 
-  const handleBookingAction = () => {
-    if (role === "user") {
-      setBookingMessage("✅ The mechanic has received your booking. Please wait for them to accept.");
-    } else if (role === "mechanic") {
-      setBookingMessage("✅ You have accepted the booking. Please contact the customer.");
-    }
+  const handleBookService = async () => {
+    if (!region) return;
 
-    // Hide after 10 seconds
-    setTimeout(() => setBookingMessage(""), 10000);
+    try {
+      const res = await fetch(`${API_URL}/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_id: current.id,
+          latitude: region.latitude,
+          longitude: region.longitude,
+          customer_id: 1, // replace with logged-in user id
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMechanic(data.booking?.mechanic);
+        setBookingMessage(`✅ Booking sent to ${data.booking?.mechanic?.name || 'mechanic'}. Waiting for response...`);
+      } else {
+        Alert.alert("Booking Failed", data.error || "Something went wrong");
+      }
+    } catch (err) {
+      console.error("Booking error:", err);
+      Alert.alert("Error", "Could not reach server");
+    }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* Search bar only for user */}
-      {role === "user" && !task && (
-        <View className="absolute top-4 left-4 right-4 z-10 bg-white rounded-lg flex-row items-center p-2 shadow-md">
-          <TextInput
-            className="flex-1 px-2"
-            placeholder="Search place..."
-            value={query}
-            onChangeText={setQuery}
-          />
-          <TouchableOpacity
-            className="bg-blue-500 px-3 py-2 rounded-lg"
-            onPress={handleSearch}
-          >
-            <Text className="text-white">Search</Text>
-          </TouchableOpacity>
-        </View>
+    <View className="flex-1 bg-black">
+      {region && (
+        <MapView
+          className="flex-1"
+          initialRegion={region}
+          showsUserLocation={true}
+        >
+          {task && mechanic && (
+            <Marker
+              coordinate={{ latitude: mechanic.latitude, longitude: mechanic.longitude }}
+              title={mechanic.name}
+              description={`Phone: ${mechanic.phone}`}
+              pinColor="red"
+            />
+          )}
+        </MapView>
       )}
 
-      {/* Map */}
-      <MapView style={{ flex: 1 }} region={region}>
-        {/* Marker for selected task */}
-        {task && (
-          <Marker
-            coordinate={{ latitude: task.latitude, longitude: task.longitude }}
-            title={task.type}
-            description={task.location}
-            pinColor="red"
-          />
-        )}
+      <View className="absolute bottom-0 w-full bg-gray-900 p-4 rounded-t-2xl">
+        <Text className="text-white text-lg font-bold">{current.name || current.type}</Text>
+        {current.description && <Text className="text-gray-400 mb-3">{current.description}</Text>}
 
-        {/* Mechanics markers */}
-        {role === "user" && !task &&
-          mechanics.map((m) => (
-            <Marker
-              key={m.id}
-              coordinate={{ latitude: m.lat, longitude: m.lng }}
-              title={m.name}
-            />
-          ))}
-
-        {/* Draw directions if task exists */}
-        {task && (
-          <MapViewDirections
-            origin={{ latitude: -1.28333, longitude: 36.81667 }} // Example: user's location
-            destination={destination}
-            apikey={GOOGLE_MAPS_APIKEY}
-            strokeWidth={5}
-            strokeColor="blue"
-          />
-        )}
-      </MapView>
-
-      {/* Task Footer */}
-      {task && (
-        <View className="absolute bottom-24 left-4 right-4 bg-white p-4 rounded-xl shadow-lg">
-          <Text className="text-lg font-bold text-black">{task.type}</Text>
-          <Text className="text-gray-500">{task.location}</Text>
-          {task.customer && <Text className="text-gray-500">Customer: {task.customer}</Text>}
-          {task.phone && <Text className="text-gray-500">Phone: {task.phone}</Text>}
-
-          <Text className="text-gray-700 mt-2">🚗 Directions drawn on map</Text>
-
-          {/* Action Button */}
+        {mechanic ? (
+          <View>
+            <Text className="text-white mb-2">
+              Assigned Mechanic: {mechanic.name} ({mechanic.phone})
+            </Text>
+            <Text className="text-yellow-400">{bookingMessage}</Text>
+          </View>
+        ) : (
           <TouchableOpacity
-            onPress={handleBookingAction}
-            className={`mt-3 py-3 rounded-lg ${
-              role === "user" ? "bg-green-600" : "bg-blue-600"
-            }`}
+            onPress={handleBookService}
+            className="bg-green-600 p-3 rounded-xl"
           >
-            <Text className="text-white text-center font-semibold">
-              {role === "user" ? "Order Mechanic" : "Accept Order"}
+            <Text className="text-white text-center text-lg font-bold">
+              Book Service
             </Text>
           </TouchableOpacity>
-
-          {/* Temporary booking message */}
-          {bookingMessage !== "" && (
-            <View className="mt-2 bg-yellow-100 p-2 rounded-lg">
-              <Text className="text-yellow-900 text-center">{bookingMessage}</Text>
-            </View>
-          )}
-        </View>
-      )}
-    </SafeAreaView>
+        )}
+      </View>
+    </View>
   );
 }
+
+
+
+// // File: src/screens/MapScreen.js
+// import React, { useState, useEffect } from "react";
+// import { SafeAreaView } from "react-native-safe-area-context";
+// import { View, TextInput, TouchableOpacity, Text } from "react-native";
+// import MapView, { Marker } from "react-native-maps";
+// import MapViewDirections from "react-native-maps-directions";
+// import { useRoute } from "@react-navigation/native";
+
+// const GOOGLE_MAPS_APIKEY = "YOUR_GOOGLE_MAPS_API_KEY";
+
+// export default function MapScreen() {
+//   const route = useRoute();
+//   const { task, role } = route.params || {};
+//   const [query, setQuery] = useState("");
+//   const [region, setRegion] = useState({
+//     latitude: -1.28333,
+//     longitude: 36.81667,
+//     latitudeDelta: 0.05,
+//     longitudeDelta: 0.05,
+//   });
+//   const [destination, setDestination] = useState(null);
+//   const [bookingMessage, setBookingMessage] = useState("");
+
+//   // Example mechanics
+//   const mechanics = [
+//     { id: 1, name: "Alex Garage", lat: -1.29, lng: 36.82, issues: ["flat tire", "engine"] },
+//     { id: 2, name: "Nairobi Mechs", lat: -1.30, lng: 36.81, issues: ["battery", "brakes"] },
+//   ];
+
+//   useEffect(() => {
+//     if (task) {
+//       setRegion({
+//         latitude: task.latitude,
+//         longitude: task.longitude,
+//         latitudeDelta: 0.05,
+//         longitudeDelta: 0.05,
+//       });
+//       setDestination({ latitude: task.latitude, longitude: task.longitude });
+//     }
+//   }, [task]);
+
+//   const handleSearch = async () => {
+//     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+//       query
+//     )}&key=${GOOGLE_MAPS_APIKEY}`;
+
+//     try {
+//       const response = await fetch(url);
+//       const data = await response.json();
+//       if (data.results.length > 0) {
+//         const { lat, lng } = data.results[0].geometry.location;
+//         setRegion({
+//           ...region,
+//           latitude: lat,
+//           longitude: lng,
+//         });
+//       }
+//     } catch (error) {
+//       console.error("Error fetching location:", error);
+//     }
+//   };
+
+//   const handleBookingAction = () => {
+//     if (role === "user") {
+//       setBookingMessage("✅ The mechanic has received your booking. Please wait for them to accept.");
+//     } else if (role === "mechanic") {
+//       setBookingMessage("✅ You have accepted the booking. Please contact the customer.");
+//     }
+
+//     // Hide after 10 seconds
+//     setTimeout(() => setBookingMessage(""), 10000);
+//   };
+
+//   return (
+//     <SafeAreaView className="flex-1 bg-white">
+//       {/* Search bar only for user */}
+//       {role === "user" && !task && (
+//         <View className="absolute top-4 left-4 right-4 z-10 bg-white rounded-lg flex-row items-center p-2 shadow-md">
+//           <TextInput
+//             className="flex-1 px-2"
+//             placeholder="Search place..."
+//             value={query}
+//             onChangeText={setQuery}
+//           />
+//           <TouchableOpacity
+//             className="bg-blue-500 px-3 py-2 rounded-lg"
+//             onPress={handleSearch}
+//           >
+//             <Text className="text-white">Search</Text>
+//           </TouchableOpacity>
+//         </View>
+//       )}
+
+//       {/* Map */}
+//       <MapView style={{ flex: 1 }} region={region}>
+//         {/* Marker for selected task */}
+//         {task && (
+//           <Marker
+//             coordinate={{ latitude: task.latitude, longitude: task.longitude }}
+//             title={task.type}
+//             description={task.location}
+//             pinColor="red"
+//           />
+//         )}
+
+//         {/* Mechanics markers */}
+//         {role === "user" && !task &&
+//           mechanics.map((m) => (
+//             <Marker
+//               key={m.id}
+//               coordinate={{ latitude: m.lat, longitude: m.lng }}
+//               title={m.name}
+//             />
+//           ))}
+
+//         {/* Draw directions if task exists */}
+//         {task && (
+//           <MapViewDirections
+//             origin={{ latitude: -1.28333, longitude: 36.81667 }} // Example: user's location
+//             destination={destination}
+//             apikey={GOOGLE_MAPS_APIKEY}
+//             strokeWidth={5}
+//             strokeColor="blue"
+//           />
+//         )}
+//       </MapView>
+
+//       {/* Task Footer */}
+//       {task && (
+//         <View className="absolute bottom-24 left-4 right-4 bg-white p-4 rounded-xl shadow-lg">
+//           <Text className="text-lg font-bold text-black">{task.type}</Text>
+//           <Text className="text-gray-500">{task.location}</Text>
+//           {task.customer && <Text className="text-gray-500">Customer: {task.customer}</Text>}
+//           {task.phone && <Text className="text-gray-500">Phone: {task.phone}</Text>}
+
+//           <Text className="text-gray-700 mt-2">🚗 Directions drawn on map</Text>
+
+//           {/* Action Button */}
+//           <TouchableOpacity
+//             onPress={handleBookingAction}
+//             className={`mt-3 py-3 rounded-lg ${
+//               role === "user" ? "bg-green-600" : "bg-blue-600"
+//             }`}
+//           >
+//             <Text className="text-white text-center font-semibold">
+//               {role === "user" ? "Order Mechanic" : "Accept Order"}
+//             </Text>
+//           </TouchableOpacity>
+
+//           {/* Temporary booking message */}
+//           {bookingMessage !== "" && (
+//             <View className="mt-2 bg-yellow-100 p-2 rounded-lg">
+//               <Text className="text-yellow-900 text-center">{bookingMessage}</Text>
+//             </View>
+//           )}
+//         </View>
+//       )}
+//     </SafeAreaView>
+//   );
+// }
 
 
 
