@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigation = useNavigation();
-  const { setUser, setMechanic } = useUser(); // <-- use context here
+  const { setUser, setMechanic, setAdmin } = useUser(); // <-- add setAdmin
 
   const handleLogin = async () => {
     try {
@@ -31,11 +31,18 @@ export default function LoginPage() {
       if (data.role === "user") {
         setUser(data.user);       // store logged-in user
         setMechanic(null);        // clear mechanic just in case
+        setAdmin(null);           // clear admin
         navigation.replace("UserTabs");
       } else if (data.role === "mechanic") {
         setMechanic(data.mechanic); // store logged-in mechanic
         setUser(null);              // clear user
+        setAdmin(null);             // clear admin
         navigation.replace("MechanicTabs");
+      } else if (data.role === "admin") { // <-- ADD ADMIN LOGIN
+        setAdmin(data.admin);        // store logged-in admin
+        setUser(null);               // clear user
+        setMechanic(null);           // clear mechanic
+        navigation.replace("AdminTabs");
       } else {
         Alert.alert("Login failed", "Unknown role");
       }
@@ -57,6 +64,8 @@ export default function LoginPage() {
           placeholderTextColor="#A0A0A0"
           value={email}
           onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
         />
 
         {/* Password */}
@@ -67,6 +76,7 @@ export default function LoginPage() {
           secureTextEntry
           value={password}
           onChangeText={setPassword}
+          autoCapitalize="none"
         />
 
         {/* Login Button */}
@@ -97,6 +107,13 @@ export default function LoginPage() {
             <Text className="font-semibold underline">Register here</Text>
           </Text>
         </TouchableOpacity>
+
+        {/* Admin Login Hint */}
+        <View className="mt-4 p-3 bg-gray-800 rounded-lg">
+          <Text className="text-gray-300 text-center text-xs">
+            Admin? Use: admin@mechapp.com / admin123
+          </Text>
+        </View>
       </View>
     </View>
   );

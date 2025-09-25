@@ -22,19 +22,49 @@ const Avatar = ({ size = 64, name = "User", className = "" }) => {
   );
 };
 
+// Star Rating Component
+const StarRating = ({ rating, size = 16, showNumber = true }) => {
+  const fullStars = Math.floor(rating);
+  const hasHalfStar = rating % 1 >= 0.5;
+  
+  return (
+    <View className="flex-row items-center">
+      <View className="flex-row">
+        {[...Array(5)].map((_, index) => {
+          if (index < fullStars) {
+            return <Ionicons key={index} name="star" size={size} color="#FFD700" />;
+          } else if (index === fullStars && hasHalfStar) {
+            return <Ionicons key={index} name="star-half" size={size} color="#FFD700" />;
+          } else {
+            return <Ionicons key={index} name="star-outline" size={size} color="#FFD700" />;
+          }
+        })}
+      </View>
+      {showNumber && (
+        <Text className="text-black font-semibold ml-2">
+          {rating.toFixed(1)}
+        </Text>
+      )}
+    </View>
+  );
+};
+
 export default function MechanicProfileScreen() {
   const navigation = useNavigation();
   const { mechanic: contextMechanic, setMechanic } = useUser();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [mechanicData, setMechanicData] = useState(null);
+  const [averageRating, setAverageRating] = useState(0);
+  const [totalRatings, setTotalRatings] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch mechanic details from backend
+  // Fetch mechanic details and rating from backend
   useEffect(() => {
     if (contextMechanic?.id) {
       fetchMechanicData();
+      fetchMechanicRating();
     }
   }, [contextMechanic?.id]);
 
@@ -48,19 +78,15 @@ export default function MechanicProfileScreen() {
       }
       
       const data = await response.json();
-          console.log('🔍 Full mechanic data from backend:', data);
-    console.log('🔍 Phone field value:', data.mechanic?.phone);
-    console.log('🔍 Phone field type:', typeof data.mechanic?.phone);
       setMechanicData(data.mechanic);
     } catch (error) {
       console.error('Error fetching mechanic data:', error);
       Alert.alert('Error', 'Failed to load profile data');
-      // Fallback to context data if available
       if (contextMechanic) {
         setMechanicData({
           ...contextMechanic,
-          jobsCompleted: 0, // Default value
-          rating: 0, // Default value
+          jobsCompleted: 0,
+          rating: 0,
           aboutShop: contextMechanic.garage_location ? 
             `Professional auto services at ${contextMechanic.garage_location}` : 
             'Professional auto services'
@@ -72,14 +98,31 @@ export default function MechanicProfileScreen() {
     }
   };
 
+  const fetchMechanicRating = async () => {
+    try {
+      const response = await fetch(`${API_URL}/mechanics/${contextMechanic.id}/average-rating`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAverageRating(data.average_rating);
+        setTotalRatings(data.total_ratings);
+      }
+    } catch (error) {
+      console.error('Error fetching mechanic rating:', error);
+      setAverageRating(0);
+      setTotalRatings(0);
+    }
+  };
+
   const handleRefresh = () => {
     setRefreshing(true);
     fetchMechanicData();
+    fetchMechanicRating();
   };
 
   const confirmLogout = () => {
     setShowLogoutConfirm(false);
-    setMechanic(null); // Clear mechanic from context
+    setMechanic(null);
     navigation.replace('Login'); 
   };
 
@@ -96,7 +139,6 @@ export default function MechanicProfileScreen() {
     }
   };
 
-  // Use context data as fallback while loading
   const displayData = mechanicData || contextMechanic;
 
   if (loading && !displayData) {
@@ -158,12 +200,18 @@ export default function MechanicProfileScreen() {
               </Text>
               <Text className="text-gray-500 text-xs">Jobs</Text>
             </View>
+            
+            {/* Updated Rating Section with Stars */}
             <View className="items-center">
-              <Text className="text-black text-2xl font-bold">
-                {mechanicData?.rating || '4.8'}
+              <StarRating rating={averageRating} size={20} showNumber={false} />
+              <Text className="text-black text-2xl font-bold mt-1">
+                {averageRating > 0 ? averageRating.toFixed(1) : '0.0'}
               </Text>
-              <Text className="text-gray-500 text-xs">Rating</Text>
+              <Text className="text-gray-500 text-xs">
+                ({totalRatings} {totalRatings === 1 ? 'rating' : 'ratings'})
+              </Text>
             </View>
+            
             <View className="items-center">
               <Text className="text-black text-2xl font-bold">
                 {displayData.status === 'online' ? 'Online' : 'Offline'}
@@ -173,6 +221,32 @@ export default function MechanicProfileScreen() {
           </View>
         </View>
 
+        {/* Customer Ratings Section */}
+        <View className="mt-6">
+          <Text className="text-black text-lg font-semibold mb-3">Customer Ratings</Text>
+          <View className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+            {totalRatings > 0 ? (
+              <View className="items-center">
+                <View className="flex-row items-center mb-2">
+                  <StarRating rating={averageRating} size={24} />
+                  <Text className="text-black text-2xl font-bold ml-2">
+                    {averageRating.toFixed(1)}
+                  </Text>
+                </View>
+                <Text className="text-gray-600 text-sm">
+                  Based on {totalRatings} customer {totalRatings === 1 ? 'review' : 'reviews'}
+                </Text>
+              </View>
+            ) : (
+              <View className="items-center py-4">
+                <Ionicons name="star-outline" size={40} color="#d1d5db" />
+                <Text className="text-gray-500 mt-2 text-center">
+                  No ratings yet. Complete your first job to get reviews!
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
         {/* Shop Information */}
         <View className="mt-6">
           <Text className="text-black text-lg font-semibold mb-3">Shop Information</Text>

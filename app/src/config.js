@@ -2,7 +2,7 @@
 import { Platform } from "react-native";
 
 // Replace this with your computer's local IP
-const LOCAL_IP = "172.16.221.126";
+const LOCAL_IP = "192.168.100.3";
 
 export const API_URL =
   Platform.OS === "android"

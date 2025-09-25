@@ -1,129 +1,380 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, Alert, Platform } from "react-native";
-import * as Location from "expo-location";
+import { View, Text, TouchableOpacity, Alert, Platform, ActivityIndicator, Linking } from "react-native";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { API_URL } from "../config";
 
-// const API_URL = "http://127.0.0.1:5000"; // replace with your backend URL
+// Platform-specific imports with error handling
+let MapView, Marker, Polyline;
 
-// Platform-specific imports
-let MapView, Marker;
-
-if (Platform.OS === 'web') {
-  MapView = require('react-native-web-maps').default;
-  Marker = require('react-native-web-maps').Marker;
-} else {
-  MapView = require("react-native-maps").default;
-  Marker = require("react-native-maps").Marker;
+try {
+  if (Platform.OS === 'web') {
+    MapView = require('react-native-web-maps').default;
+    Marker = require('react-native-web-maps').Marker;
+    Polyline = require('react-native-web-maps').Polyline;
+  } else {
+    MapView = require("react-native-maps").default;
+    Marker = require("react-native-maps").Marker;
+    Polyline = require("react-native-maps").Polyline;
+  }
+} catch (error) {
+  console.warn("Map components not available:", error);
 }
 
-export default function MapScreen({ route }) {
-  const { task, service } = route.params;  // either one will exist
-  const current = task || service;
+export default function MapScreen() {
+  const route = useRoute();
+  const navigation = useNavigation();
+  
+  // Safe parameter extraction with defaults
+  const bookingId = route.params?.bookingId;
+  const task = route.params?.task;
+  const service = route.params?.service;
 
-  const [region, setRegion] = useState({
-    latitude: current.latitude || 0,
-    longitude: current.longitude || 0,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  });
-  const [mechanic, setMechanic] = useState(null);
-  const [bookingMessage, setBookingMessage] = useState("");
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [region, setRegion] = useState(null);
+  const [distance, setDistance] = useState(null);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      if (!current.latitude || !current.longitude) {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          Alert.alert("Permission Denied", "Allow location access to use this feature.");
-          return;
-        }
-        let loc = await Location.getCurrentPositionAsync({});
-        setRegion({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-      }
-    })();
-  }, []);
+  // Function to make phone calls
+  const makePhoneCall = async (phoneNumber, contactName) => {
+    if (!phoneNumber) {
+      Alert.alert("Error", "Phone number not available");
+      return;
+    }
 
-  const handleBookService = async () => {
-    if (!region) return;
+    const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    
+    if (!cleanNumber.match(/^\+?[\d\s\-\(\)]{10,}$/)) {
+      Alert.alert("Invalid Number", "The phone number format is invalid");
+      return;
+    }
 
+    const phoneUrl = Platform.OS === 'ios' ? `telprompt:${cleanNumber}` : `tel:${cleanNumber}`;
+    
     try {
-      const res = await fetch(`${API_URL}/bookings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          service_id: current.id,
-          latitude: region.latitude,
-          longitude: region.longitude,
-          customer_id: 1, // replace with logged-in user id
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setMechanic(data.booking?.mechanic);
-        setBookingMessage(`✅ Booking sent to ${data.booking?.mechanic?.name || 'mechanic'}. Waiting for response...`);
+      const supported = await Linking.canOpenURL(phoneUrl);
+      
+      if (supported) {
+        await Linking.openURL(phoneUrl);
       } else {
-        Alert.alert("Booking Failed", data.error || "Something went wrong");
+        Alert.alert(
+          "Call Information", 
+          `Call ${contactName} at: ${cleanNumber}`,
+          [{ text: "OK" }]
+        );
       }
-    } catch (err) {
-      console.error("Booking error:", err);
-      Alert.alert("Error", "Could not reach server");
+    } catch (error) {
+      console.error("Error making phone call:", error);
+      Alert.alert("Info", `Phone number: ${cleanNumber}`);
     }
   };
 
-  return (
-    <View className="flex-1 bg-black">
-      {region && (
-        <MapView
-          className="flex-1"
-          initialRegion={region}
-          showsUserLocation={true}
+  const handlePhoneCall = (phoneNumber, contactName) => {
+    Alert.alert(
+      `Call ${contactName}`,
+      `Do you want to call ${phoneNumber}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Call", onPress: () => makePhoneCall(phoneNumber, contactName) }
+      ]
+    );
+  };
+
+  useEffect(() => {
+    if (bookingId) {
+      fetchBookingDetails();
+    } else {
+      setError("No booking ID provided");
+      setLoading(false);
+    }
+  }, [bookingId]);
+
+  const fetchBookingDetails = async () => {
+    try {
+      const response = await fetch(`${API_URL}/bookings/${bookingId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const bookingData = await response.json();
+      setBooking(bookingData);
+
+      if (bookingData.latitude && bookingData.longitude && bookingData.mechanic) {
+        const customerLat = bookingData.latitude;
+        const customerLng = bookingData.longitude;
+        const mechanicLat = bookingData.mechanic.latitude;
+        const mechanicLng = bookingData.mechanic.longitude;
+
+        const minLat = Math.min(customerLat, mechanicLat);
+        const maxLat = Math.max(customerLat, mechanicLat);
+        const minLng = Math.min(customerLng, mechanicLng);
+        const maxLng = Math.max(customerLng, mechanicLng);
+
+        setRegion({
+          latitude: (minLat + maxLat) / 2,
+          longitude: (minLng + maxLng) / 2,
+          latitudeDelta: (maxLat - minLat) * 1.5 + 0.01,
+          longitudeDelta: (maxLng - minLng) * 1.5 + 0.01,
+        });
+
+        const calculatedDistance = calculateDistance(
+          customerLat,
+          customerLng,
+          mechanicLat,
+          mechanicLng
+        );
+        setDistance(calculatedDistance);
+      }
+
+    } catch (error) {
+      console.error("Error fetching booking details:", error);
+      setError("Failed to load booking details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return (R * c).toFixed(1);
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Completed": return "bg-green-600";
+      case "Accepted": return "bg-blue-500";
+      case "Pending": return "bg-yellow-500";
+      case "Rejected": return "bg-red-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case "Accepted": return "In Progress";
+      case "Pending": return "Pending";
+      case "Completed": return "Completed";
+      case "Rejected": return "Cancelled";
+      default: return status;
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-black justify-center items-center">
+        <ActivityIndicator size="large" color="white" />
+        <Text className="text-white mt-4">Loading booking details...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !booking) {
+    return (
+      <SafeAreaView className="flex-1 bg-black justify-center items-center">
+        <Ionicons name="alert-circle" size={64} color="red" />
+        <Text className="text-white text-lg mt-4">{error || "Booking not found"}</Text>
+        <TouchableOpacity 
+          className="bg-blue-500 px-4 py-2 rounded-full mt-4"
+          onPress={() => navigation.goBack()}
         >
-          {task && mechanic && (
-            <Marker
-              coordinate={{ latitude: mechanic.latitude, longitude: mechanic.longitude }}
-              title={mechanic.name}
-              description={`Phone: ${mechanic.phone}`}
-              pinColor="red"
+          <Text className="text-white">Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-black">
+      {/* Header */}
+      <View className="absolute top-0 left-0 right-0 z-10 bg-black bg-opacity-90 p-4">
+        <View className="flex-row items-center">
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()}
+            className="mr-3"
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text className="text-white text-xl font-bold">Booking Details</Text>
+        </View>
+        <Text className="text-gray-400">ID: #{booking.id}</Text>
+      </View>
+
+      {/* Map */}
+      {region && booking.mechanic && MapView ? (
+        <MapView
+          style={{ flex: 1 }}
+          initialRegion={region}
+          showsUserLocation={false}
+        >
+          {/* Customer Marker */}
+          <Marker
+            coordinate={{
+              latitude: booking.latitude,
+              longitude: booking.longitude
+            }}
+            title="Customer Location"
+            description={booking.location}
+          >
+            <View className="items-center">
+              <Ionicons name="person" size={24} color="blue" />
+              <Text className="text-blue-500 font-bold">Customer</Text>
+            </View>
+          </Marker>
+
+          {/* Mechanic Marker */}
+          <Marker
+            coordinate={{
+              latitude: booking.mechanic.latitude,
+              longitude: booking.mechanic.longitude
+            }}
+            title={booking.mechanic.garage_name || booking.mechanic.name}
+            description={booking.mechanic.garage_location}
+          >
+            <View className="items-center">
+              <Ionicons name="construct" size={24} color="red" />
+              <Text className="text-red-500 font-bold">Mechanic</Text>
+            </View>
+          </Marker>
+
+          {/* Route Line */}
+          {Polyline && (
+            <Polyline
+              coordinates={[
+                {
+                  latitude: booking.latitude,
+                  longitude: booking.longitude
+                },
+                {
+                  latitude: booking.mechanic.latitude,
+                  longitude: booking.mechanic.longitude
+                }
+              ]}
+              strokeColor="#00FF00"
+              strokeWidth={3}
+              lineDashPattern={[10, 10]}
             />
           )}
         </MapView>
+      ) : (
+        <View className="flex-1 justify-center items-center">
+          <Ionicons name="map-outline" size={64} color="gray" />
+          <Text className="text-gray-400 mt-4">Map not available</Text>
+        </View>
       )}
 
-      <View className="absolute bottom-0 w-full bg-gray-900 p-4 rounded-t-2xl">
-        <Text className="text-white text-lg font-bold">{current.name || current.type}</Text>
-        {current.description && <Text className="text-gray-400 mb-3">{current.description}</Text>}
+      {/* Booking Details Panel */}
+      <View className="absolute bottom-0 left-0 right-0 bg-gray-900 bg-opacity-95 p-4 rounded-t-2xl max-h-1/2">
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-white text-lg font-bold">Booking Information</Text>
+          <Text className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(booking.status)} text-white`}>
+            {getStatusText(booking.status)}
+          </Text>
+        </View>
 
-        {mechanic ? (
-          <View>
-            <Text className="text-white mb-2">
-              Assigned Mechanic: {mechanic.name} ({mechanic.phone})
-            </Text>
-            <Text className="text-yellow-400">{bookingMessage}</Text>
+        <View className="space-y-2">
+          {/* Service Info */}
+          <View className="flex-row justify-between">
+            <Text className="text-gray-400">Service:</Text>
+            <Text className="text-white">{booking.type}</Text>
           </View>
-        ) : (
-          <TouchableOpacity
-            onPress={handleBookService}
-            className="bg-green-600 p-3 rounded-xl"
-          >
-            <Text className="text-white text-center text-lg font-bold">
-              Book Service
+
+          {/* Location */}
+          <View className="flex-row justify-between">
+            <Text className="text-gray-400">Location:</Text>
+            <Text className="text-white text-right flex-1 ml-2">{booking.location}</Text>
+          </View>
+
+          {/* Coordinates - ADDED BACK */}
+          <View className="flex-row justify-between">
+            <Text className="text-gray-400">Coordinates:</Text>
+            <Text className="text-white">
+              {booking.latitude?.toFixed(4)}, {booking.longitude?.toFixed(4)}
             </Text>
+          </View>
+
+          {/* Distance - ADDED BACK */}
+          {distance && (
+            <View className="flex-row justify-between">
+              <Text className="text-gray-400">Distance:</Text>
+              <Text className="text-white">{distance} km</Text>
+            </View>
+          )}
+
+          {/* Customer Info */}
+          <View className="mt-3 pt-2 border-t border-gray-700">
+            <Text className="text-gray-400 font-semibold mb-1">Customer:</Text>
+            <Text className="text-white">{booking.customer?.name}</Text>
+            <TouchableOpacity 
+              onPress={() => handlePhoneCall(booking.customer?.phone, booking.customer?.name)}
+            >
+              <Text className="text-blue-400 text-sm underline">{booking.customer?.phone}</Text>
+            </TouchableOpacity>
+            {/* <Text className="text-gray-300 text-sm">{booking.customer?.email}</Text> */}
+          </View>
+
+          {/* Mechanic Info - ADDED BACK FULL DETAILS */}
+          <View className="mt-2 pt-3 border-t border-gray-700">
+            <Text className="text-gray-400 font-semibold mb-1">Mechanic:</Text>
+            <Text className="text-white">{booking.mechanic?.name}</Text>
+            <Text className="text-gray-300 text-sm">{booking.mechanic?.garage_name}</Text>
+            <TouchableOpacity 
+              onPress={() => handlePhoneCall(booking.mechanic?.phone, booking.mechanic?.name)}
+            >
+              <Text className="text-blue-400 text-sm underline">{booking.mechanic?.phone}</Text>
+            </TouchableOpacity>
+            <Text className="text-gray-300 text-sm">{booking.mechanic?.garage_location}</Text>
+          </View>
+
+          {/* Timestamps - ADDED BACK */}
+          <View className="mt-2 pt-3 border-t border-gray-700">
+            <Text className="text-gray-400 text-xs">
+              Created: {new Date(booking.created_at).toLocaleString()}
+            </Text>
+            {booking.updated_at && (
+              <Text className="text-gray-400 text-xs">
+                Updated: {new Date(booking.updated_at).toLocaleString()}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View className="flex-row space-x-3 mt-4">
+          <TouchableOpacity 
+            className="flex-1 bg-blue-600 p-3 rounded-xl flex-row justify-center items-center"
+            onPress={() => handlePhoneCall(booking.customer?.phone, booking.customer?.name)}
+          >
+            <Ionicons name="call" size={18} color="white" />
+            <Text className="text-white ml-2">Call Customer</Text>
           </TouchableOpacity>
-        )}
+
+          <TouchableOpacity 
+            className="flex-1 bg-green-600 p-3 rounded-xl flex-row justify-center items-center"
+            onPress={() => handlePhoneCall(booking.mechanic?.phone, booking.mechanic?.name)}
+          >
+            <Ionicons name="construct" size={18} color="white" />
+            <Text className="text-white ml-2">Call Mechanic</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
-
-
-
 // // File: src/screens/MapScreen.js
 // import React, { useState, useEffect } from "react";
 // import { SafeAreaView } from "react-native-safe-area-context";

@@ -49,7 +49,7 @@ export default function App() {
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="UserSettings" component={SettingsScreen} />
           <Stack.Screen name="MechanicHome" component={MechanicHomeScreen} options={{ title: "Mechanic Home" }} />
-          <Stack.Screen name="MapScreen" component={MapScreen} options={{ title: "Task Location" }} />
+          <Stack.Screen name="Maps" component={MapScreen} options={{ title:  "Booking Map" }} />
           <Stack.Screen name="MechanicProfile" component={MechanicProfile} />
           <Stack.Screen name="AdminTabs" component={AdminTabs} />
           <Stack.Screen name="UserTabs" component={UserTabs} />
