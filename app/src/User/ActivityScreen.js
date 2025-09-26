@@ -39,6 +39,14 @@ export default function ActivityScreen() {
       const allBookings = await response.json();
       const userBookings = allBookings.filter(booking => booking.customer?.id === user.id);
 
+      // Debug: Check what date fields are available
+      if (userBookings.length > 0) {
+        console.log('First booking date fields:', {
+          created_at: userBookings[0].created_at,
+          id: userBookings[0].id
+        });
+      }
+
       // Fetch ratings for each booking
       const ratingsMap = {};
       for (const booking of userBookings) {
@@ -167,60 +175,60 @@ export default function ActivityScreen() {
   };
 
   // Function to submit rating
-  // Function to submit rating
-const submitRating = async () => {
-  if (rating === 0) {
-    Alert.alert("Error", "Please select a rating");
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/ratings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        booking_id: selectedBooking.id,
-        user_id: user.id,
-        rating: rating,
-        comment: ratingComment
-      }),
-    });
-
-    // Check if response is HTML (error page)
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('text/html')) {
-      const textResponse = await response.text();
-      console.error('Server returned HTML instead of JSON:', textResponse.substring(0, 200));
-      throw new Error('Server error - please try again later');
+  const submitRating = async () => {
+    if (rating === 0) {
+      Alert.alert("Error", "Please select a rating");
+      return;
     }
 
-    if (!response.ok) {
-      // Try to parse as JSON for error message
-      try {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      } catch (jsonError) {
-        // If JSON parsing fails, use status text
-        throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+    try {
+      const response = await fetch(`${API_URL}/ratings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          booking_id: selectedBooking.id,
+          user_id: user.id,
+          rating: rating,
+          comment: ratingComment
+        }),
+      });
+
+      // Check if response is HTML (error page)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        const textResponse = await response.text();
+        console.error('Server returned HTML instead of JSON:', textResponse.substring(0, 200));
+        throw new Error('Server error - please try again later');
       }
+
+      if (!response.ok) {
+        // Try to parse as JSON for error message
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        } catch (jsonError) {
+          // If JSON parsing fails, use status text
+          throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        }
+      }
+
+      const data = await response.json();
+
+      Alert.alert("Success", "Thank you for your rating!");
+      setShowRatingModal(false);
+      setRating(0);
+      setRatingComment('');
+      setSelectedBooking(null);
+      fetchBookings(); // Refresh to show the rating
+      
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert("Error", error.message || "Failed to submit rating");
     }
+  };
 
-    const data = await response.json();
-
-    Alert.alert("Success", "Thank you for your rating!");
-    setShowRatingModal(false);
-    setRating(0);
-    setRatingComment('');
-    setSelectedBooking(null);
-    fetchBookings(); // Refresh to show the rating
-    
-  } catch (error) {
-    console.error('Error submitting rating:', error);
-    Alert.alert("Error", error.message || "Failed to submit rating");
-  }
-};
   // Open complaint modal
   const openComplaintModal = (booking) => {
     setSelectedBooking(booking);
@@ -245,11 +253,41 @@ const submitRating = async () => {
     fetchBookings();
   };
 
-  // Format date from created_at field
+  // Fixed formatDate function for ISO format
   const formatDate = (dateString) => {
-    if (!dateString) return 'Unknown date';
+    console.log('Date string received:', dateString); // Debug log
+    
+    if (!dateString || dateString === 'None' || dateString === 'null') {
+      console.log('No date string provided or value is None/null');
+      return 'Date not available';
+    }
+    
     try {
+      // Handle Python None serialization
+      if (dateString === 'None') return 'Date not available';
+      
+      // Parse ISO format directly - JavaScript handles ISO format well
       const date = new Date(dateString);
+      
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        console.log('Invalid date object created from:', dateString);
+        
+        // Try alternative parsing for ISO format with timezone
+        const altDate = new Date(dateString.replace(' ', 'T') + 'Z');
+        if (!isNaN(altDate.getTime())) {
+          return altDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        }
+        
+        return 'Invalid date';
+      }
+      
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -258,7 +296,8 @@ const submitRating = async () => {
         minute: '2-digit'
       });
     } catch (error) {
-      return 'Invalid date';
+      console.error('Date formatting error:', error, 'for date:', dateString);
+      return 'Date format error';
     }
   };
 
@@ -300,7 +339,7 @@ const submitRating = async () => {
 
   // Navigate to map with booking details
   const handleViewOnMap = (booking) => {
-    navigation.navigate('Maps', { bookingId: booking.id });
+    navigation.navigate('UserMapScreen', { booking });
   };
 
   // Render star rating
@@ -414,9 +453,16 @@ const submitRating = async () => {
                   <Text style={{ fontSize: 18, fontWeight: '600', color: 'black' }}>
                     {booking.type || 'Service Booking'}
                   </Text>
-                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>
+                  {/* DATE AND TIME DISPLAY - FIXED */}
+                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 2, fontStyle: 'italic'}}>
                     {formatDate(booking.created_at)}
                   </Text>
+                  {/* Show updated date if different from created */}
+                  {booking.updated_at && booking.updated_at !== booking.created_at && (
+                    <Text style={{ color: '#9CA3AF', fontSize: 10, marginTop: 2 }}>
+                      Updated: {formatDate(booking.updated_at)}
+                    </Text>
+                  )}
                 </View>
                 <View style={{
                   paddingHorizontal: 8,

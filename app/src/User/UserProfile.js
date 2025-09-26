@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 import { API_URL } from '../config';
 
-// Avatar Component (same as in MechanicProfile)
+// Avatar Component
 const Avatar = ({ size = 64, name = "User", profilePicture, className = "" }) => {
   // If profile picture is available, use it
   if (profilePicture) {
@@ -36,7 +36,7 @@ const Avatar = ({ size = 64, name = "User", profilePicture, className = "" }) =>
 
 export default function UserProfile() {
   const navigation = useNavigation();
-  const { user} = useUser(); // Get user from context
+  const { user, setUser } = useUser();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
@@ -71,8 +71,8 @@ export default function UserProfile() {
       if (user) {
         setUserData({
           ...user,
-          bookings_count: 0, // Default value
-          membership: 'Standard Member' // Default value
+          bookings_count: 0,
+          membership: 'Standard Member'
         });
       }
     } finally {
@@ -94,6 +94,7 @@ export default function UserProfile() {
 
   const confirmLogout = () => {
     setShowLogoutConfirm(false);
+    setUser(null);
     navigation.replace('Login');
   };
 
@@ -202,12 +203,14 @@ export default function UserProfile() {
               <Text className="text-gray-500 text-xs">Bookings</Text>
             </View>
             <View className="items-center">
-              <Text className="text-black text-2xl font-bold">4.9</Text>
-              <Text className="text-gray-500 text-xs">Rating</Text>
-            </View>
-            <View className="items-center">
               <Text className="text-black text-2xl font-bold">{vehicles.length}</Text>
               <Text className="text-gray-500 text-xs">Vehicles</Text>
+            </View>
+            <View className="items-center">
+              <Text className="text-black text-2xl font-bold">
+                {displayData.status === 'active' ? 'Active' : 'Inactive'}
+              </Text>
+              <Text className="text-gray-500 text-xs">Status</Text>
             </View>
           </View>
         </View>

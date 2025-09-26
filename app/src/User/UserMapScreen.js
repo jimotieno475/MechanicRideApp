@@ -7,6 +7,7 @@ import * as Location from "expo-location";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { API_URL } from "../config";
 import { useUser } from "../contexts/UserContext";
+import { Ionicons } from "@expo/vector-icons"; // Import Ionicons for the arrow icon
 
 const GOOGLE_MAPS_APIKEY = "AIzaSyCgwyuVt5ITQ5zNHcPQCPPS_gs9VXNi3CY";
 
@@ -23,6 +24,7 @@ export default function UserMapScreen() {
   const [loading, setLoading] = useState(false);
   const bookingTimeoutRef = useRef(null);
   const pollingIntervalRef = useRef(null);
+  const mapRef = useRef(null); // Ref to manipulate the map
 
   // Determine if the screen is for a new booking or viewing an existing one
   const isViewingExistingBooking = !!booking;
@@ -83,17 +85,18 @@ export default function UserMapScreen() {
 
   // Poll for booking status updates if viewing an existing booking
   useEffect(() => {
-    if (isViewingExistingBooking) {
+    if (isViewingExistingBooking && booking.status === 'Pending') {
       const fetchBookingStatus = async () => {
         try {
-          // This assumes the backend has a /bookings/{id} route or we filter
-          const res = await fetch(`${API_URL}/bookings`);
+          // You should ideally have a route for a single booking: /bookings/{id}
+          const res = await fetch(`${API_URL}/bookings/${booking.id}`); 
           if (res.ok) {
-            const allBookings = await res.json();
-            const latestBooking = allBookings.find(b => b.id === booking.id);
+            const latestBooking = await res.json();
+
             if (latestBooking && latestBooking.status !== booking.status) {
               setAssignedMechanic(latestBooking.mechanic); // Update mechanic if needed
               setBookingMessage(getBookingMessage(latestBooking.status));
+              
               if (latestBooking.status !== 'Pending') {
                 clearInterval(pollingIntervalRef.current);
               }
@@ -141,8 +144,11 @@ export default function UserMapScreen() {
         }
         setBookingMessage(getBookingMessage(data.booking.status));
         
-        // Polling for status updates on the newly created booking
-        // The polling logic above handles this automatically
+        // Start polling for status updates on the newly created booking
+        // You'll need to pass the *new* booking ID to the polling logic,
+        // which typically involves navigating to a dedicated screen or updating the parent state.
+        // For simplicity here, we'll rely on the next screen logic or a fresh re-render.
+
       } else {
         Alert.alert("Booking Failed", data.error || "Something went wrong");
       }
@@ -157,6 +163,7 @@ export default function UserMapScreen() {
     <SafeAreaView className="flex-1 bg-black">
       {region && (
         <MapView
+          ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={{ flex: 1 }}
           region={region}
@@ -167,8 +174,12 @@ export default function UserMapScreen() {
               coordinate={{ latitude: assignedMechanic.latitude, longitude: assignedMechanic.longitude }}
               title={assignedMechanic.name}
               description={assignedMechanic.garage_location || "Garage"}
-              pinColor="red"
-            />
+              // Using a custom view for the marker to simulate an arrow pointing towards the mechanic
+            >
+                <View className="bg-red-600 p-2 rounded-full shadow-lg">
+                    <Ionicons name="arrow-up" size={24} color="white" />
+                </View>
+            </Marker>
           )}
 
           {destination?.latitude != null && destination?.longitude != null && region && (
@@ -178,13 +189,15 @@ export default function UserMapScreen() {
               apikey={GOOGLE_MAPS_APIKEY}
               strokeWidth={5}
               strokeColor="blue"
+              // You can't directly add arrowheads to the polyline,
+              // but the blue line with the custom arrow marker serves the purpose.
             />
           )}
         </MapView>
       )}
 
-      {/* Booking Footer */}
-      <View className="absolute left-4 right-4 bottom-6 bg-gray-900 p-4 rounded-xl shadow-lg">
+      {/* Booking Footer - Moved up using 'bottom-20' instead of 'bottom-6' */}
+      <View className="absolute left-4 right-4 bottom-20 bg-gray-900 p-4 rounded-xl shadow-2xl z-10">
         <Text className="text-white text-lg font-bold">{currentService.name}</Text>
         {currentService.description && <Text className="text-gray-400 mb-2">{currentService.description}</Text>}
 
@@ -198,7 +211,7 @@ export default function UserMapScreen() {
                 Services: {assignedMechanic.services_offered.join(", ")}
               </Text>
             )}
-            <Text className="text-yellow-400">{bookingMessage}</Text>
+            <Text className="text-yellow-400 font-semibold mt-2">{bookingMessage}</Text>
           </View>
         ) : (
           <TouchableOpacity

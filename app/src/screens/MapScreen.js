@@ -4,10 +4,8 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API_URL } from "../config";
-
 // Platform-specific imports with error handling
 let MapView, Marker, Polyline;
-
 try {
   if (Platform.OS === 'web') {
     MapView = require('react-native-web-maps').default;
@@ -25,7 +23,6 @@ try {
 export default function MapScreen() {
   const route = useRoute();
   const navigation = useNavigation();
-  
   // Safe parameter extraction with defaults
   const bookingId = route.params?.bookingId;
   const task = route.params?.task;
@@ -43,24 +40,19 @@ export default function MapScreen() {
       Alert.alert("Error", "Phone number not available");
       return;
     }
-
     const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
-    
     if (!cleanNumber.match(/^\+?[\d\s\-\(\)]{10,}$/)) {
       Alert.alert("Invalid Number", "The phone number format is invalid");
       return;
     }
-
     const phoneUrl = Platform.OS === 'ios' ? `telprompt:${cleanNumber}` : `tel:${cleanNumber}`;
-    
     try {
       const supported = await Linking.canOpenURL(phoneUrl);
-      
       if (supported) {
         await Linking.openURL(phoneUrl);
       } else {
         Alert.alert(
-          "Call Information", 
+          "Call Information",
           `Call ${contactName} at: ${cleanNumber}`,
           [{ text: "OK" }]
         );
@@ -99,11 +91,9 @@ export default function MapScreen() {
           "Content-Type": "application/json",
         },
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
       const bookingData = await response.json();
       setBooking(bookingData);
 
@@ -112,12 +102,10 @@ export default function MapScreen() {
         const customerLng = bookingData.longitude;
         const mechanicLat = bookingData.mechanic.latitude;
         const mechanicLng = bookingData.mechanic.longitude;
-
         const minLat = Math.min(customerLat, mechanicLat);
         const maxLat = Math.max(customerLat, mechanicLat);
         const minLng = Math.min(customerLng, mechanicLng);
         const maxLng = Math.max(customerLng, mechanicLng);
-
         setRegion({
           latitude: (minLat + maxLat) / 2,
           longitude: (minLng + maxLng) / 2,
@@ -133,7 +121,6 @@ export default function MapScreen() {
         );
         setDistance(calculatedDistance);
       }
-
     } catch (error) {
       console.error("Error fetching booking details:", error);
       setError("Failed to load booking details");
@@ -146,9 +133,9 @@ export default function MapScreen() {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
+    const a =
       Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
       Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return (R * c).toFixed(1);
@@ -174,44 +161,52 @@ export default function MapScreen() {
     }
   };
 
+  const getFormattedDistance = (distance) => {
+    const numericDistance = parseFloat(distance);
+    // Check if the distance is less than 1 km
+    if (numericDistance < 1) {
+      // Convert km to meters and return with 'm' unit
+      return `${(numericDistance * 1000).toFixed(0)} m`;
+    }
+    // Otherwise, return in kilometers with 'km' unit
+    return `${numericDistance} km`;
+  };
+
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-black justify-center items-center">
-        <ActivityIndicator size="large" color="white" />
-        <Text className="text-white mt-4">Loading booking details...</Text>
-      </SafeAreaView>
+      <View className="flex-1 justify-center items-center">
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text className="mt-4">Loading booking details...</Text>
+      </View>
     );
   }
 
   if (error || !booking) {
     return (
-      <SafeAreaView className="flex-1 bg-black justify-center items-center">
-        <Ionicons name="alert-circle" size={64} color="red" />
-        <Text className="text-white text-lg mt-4">{error || "Booking not found"}</Text>
-        <TouchableOpacity 
-          className="bg-blue-500 px-4 py-2 rounded-full mt-4"
+      <View className="flex-1 justify-center items-center p-5">
+        <Text className="text-xl font-bold text-red-500 mb-4">{error || "Booking not found"}</Text>
+        <TouchableOpacity
+          className="bg-blue-500 py-3 px-6 rounded-md"
           onPress={() => navigation.goBack()}
         >
-          <Text className="text-white">Go Back</Text>
+          <Text className="text-white font-bold">Go Back</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
+    <SafeAreaView className="flex-1 bg-gray-100">
       {/* Header */}
-      <View className="absolute top-0 left-0 right-0 z-10 bg-black bg-opacity-90 p-4">
-        <View className="flex-row items-center">
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()}
-            className="mr-3"
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text className="text-white text-xl font-bold">Booking Details</Text>
-        </View>
-        <Text className="text-gray-400">ID: #{booking.id}</Text>
+      <View className="flex-row items-center justify-between p-4 bg-white border-b border-gray-200">
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          className="mr-3 p-1"
+        >
+          <Ionicons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+        <Text className="text-xl font-bold flex-1">Booking Details</Text>
+        <Text className="text-md text-gray-600">ID: #{booking.id}</Text>
       </View>
 
       {/* Map */}
@@ -219,35 +214,30 @@ export default function MapScreen() {
         <MapView
           style={{ flex: 1 }}
           initialRegion={region}
-          showsUserLocation={false}
+          region={region}
+          showsUserLocation={true}
+          followsUserLocation={true}
         >
           {/* Customer Marker */}
           <Marker
-            coordinate={{
-              latitude: booking.latitude,
-              longitude: booking.longitude
-            }}
+            coordinate={{ latitude: booking.latitude, longitude: booking.longitude }}
             title="Customer Location"
             description={booking.location}
           >
-            <View className="items-center">
-              <Ionicons name="person" size={24} color="blue" />
-              <Text className="text-blue-500 font-bold">Customer</Text>
+            <View className="bg-white p-2 rounded-full border-2 border-blue-500">
+              <Text>Customer</Text>
             </View>
           </Marker>
 
           {/* Mechanic Marker */}
           <Marker
-            coordinate={{
-              latitude: booking.mechanic.latitude,
-              longitude: booking.mechanic.longitude
-            }}
-            title={booking.mechanic.garage_name || booking.mechanic.name}
+            coordinate={{ latitude: booking.mechanic.latitude, longitude: booking.mechanic.longitude }}
+            title="Mechanic Location"
             description={booking.mechanic.garage_location}
+            pinColor="blue"
           >
-            <View className="items-center">
-              <Ionicons name="construct" size={24} color="red" />
-              <Text className="text-red-500 font-bold">Mechanic</Text>
+            <View className="bg-blue-500 p-2 rounded-full border-2 border-white">
+              <Text className="text-white">Mechanic</Text>
             </View>
           </Marker>
 
@@ -255,120 +245,107 @@ export default function MapScreen() {
           {Polyline && (
             <Polyline
               coordinates={[
-                {
-                  latitude: booking.latitude,
-                  longitude: booking.longitude
-                },
-                {
-                  latitude: booking.mechanic.latitude,
-                  longitude: booking.mechanic.longitude
-                }
+                { latitude: booking.latitude, longitude: booking.longitude },
+                { latitude: booking.mechanic.latitude, longitude: booking.mechanic.longitude }
               ]}
-              strokeColor="#00FF00"
-              strokeWidth={3}
-              lineDashPattern={[10, 10]}
+              strokeColor="#1E90FF"
+              strokeWidth={4}
             />
           )}
         </MapView>
       ) : (
         <View className="flex-1 justify-center items-center">
-          <Ionicons name="map-outline" size={64} color="gray" />
-          <Text className="text-gray-400 mt-4">Map not available</Text>
+          <Text className="text-red-500 font-bold">Map not available</Text>
         </View>
       )}
 
       {/* Booking Details Panel */}
-      <View className="absolute bottom-0 left-0 right-0 bg-gray-900 bg-opacity-95 p-4 rounded-t-2xl max-h-1/2">
-        <View className="flex-row justify-between items-center mb-3">
-          <Text className="text-white text-lg font-bold">Booking Information</Text>
-          <Text className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(booking.status)} text-white`}>
+      <View className="bg-white p-5 rounded-t-xl shadow-lg">
+        <View className="flex-row items-center justify-between mb-4">
+          <Text className="text-xl font-bold">Booking Information</Text>
+          <Text className={`py-1 px-3 rounded-full text-white font-bold ${getStatusColor(booking.status)}`}>
             {getStatusText(booking.status)}
           </Text>
         </View>
 
-        <View className="space-y-2">
+        <View className="space-y-3">
           {/* Service Info */}
           <View className="flex-row justify-between">
-            <Text className="text-gray-400">Service:</Text>
-            <Text className="text-white">{booking.type}</Text>
+            <Text className="font-semibold text-gray-600">Service:</Text>
+            <Text className="text-gray-800">{booking.type}</Text>
           </View>
-
           {/* Location */}
           <View className="flex-row justify-between">
-            <Text className="text-gray-400">Location:</Text>
-            <Text className="text-white text-right flex-1 ml-2">{booking.location}</Text>
+            <Text className="font-semibold text-gray-600">Location:</Text>
+            <Text className="text-gray-800">{booking.location}</Text>
           </View>
-
-          {/* Coordinates - ADDED BACK */}
+          {/* Coordinates */}
           <View className="flex-row justify-between">
-            <Text className="text-gray-400">Coordinates:</Text>
-            <Text className="text-white">
+            <Text className="font-semibold text-gray-600">Coordinates:</Text>
+            <Text className="text-gray-800">
               {booking.latitude?.toFixed(4)}, {booking.longitude?.toFixed(4)}
             </Text>
           </View>
-
-          {/* Distance - ADDED BACK */}
+          {/* Distance */}
           {distance && (
             <View className="flex-row justify-between">
-              <Text className="text-gray-400">Distance:</Text>
-              <Text className="text-white">{distance} km</Text>
+              <Text className="font-semibold text-gray-600">Distance:</Text>
+              <Text className="text-gray-800">{getFormattedDistance(distance)}</Text>
             </View>
           )}
-
           {/* Customer Info */}
-          <View className="mt-3 pt-2 border-t border-gray-700">
-            <Text className="text-gray-400 font-semibold mb-1">Customer:</Text>
-            <Text className="text-white">{booking.customer?.name}</Text>
-            <TouchableOpacity 
+          <View className="flex-row justify-between items-center">
+            <View>
+              <Text className="font-semibold text-gray-600">Customer:</Text>
+              <Text className="text-gray-800">{booking.customer?.name}</Text>
+            </View>
+            <TouchableOpacity
               onPress={() => handlePhoneCall(booking.customer?.phone, booking.customer?.name)}
+              className="flex-row items-center"
             >
-              <Text className="text-blue-400 text-sm underline">{booking.customer?.phone}</Text>
+              <Ionicons name="call-outline" size={20} color="#1E90FF" />
+              <Text className="ml-1 text-blue-500 underline">{booking.customer?.phone}</Text>
             </TouchableOpacity>
-            {/* <Text className="text-gray-300 text-sm">{booking.customer?.email}</Text> */}
           </View>
-
-          {/* Mechanic Info - ADDED BACK FULL DETAILS */}
-          <View className="mt-2 pt-3 border-t border-gray-700">
-            <Text className="text-gray-400 font-semibold mb-1">Mechanic:</Text>
-            <Text className="text-white">{booking.mechanic?.name}</Text>
-            <Text className="text-gray-300 text-sm">{booking.mechanic?.garage_name}</Text>
-            <TouchableOpacity 
+          {/* Mechanic Info */}
+          <View className="flex-row justify-between items-center">
+            <View>
+              <Text className="font-semibold text-gray-600">Mechanic:</Text>
+              <Text className="text-gray-800">{booking.mechanic?.name}</Text>
+              <Text className="text-gray-500 text-sm">{booking.mechanic?.garage_name}</Text>
+            </View>
+            <TouchableOpacity
               onPress={() => handlePhoneCall(booking.mechanic?.phone, booking.mechanic?.name)}
+              className="flex-row items-center"
             >
-              <Text className="text-blue-400 text-sm underline">{booking.mechanic?.phone}</Text>
+              <Ionicons name="call-outline" size={20} color="#1E90FF" />
+              <Text className="ml-1 text-blue-500 underline">{booking.mechanic?.phone}</Text>
             </TouchableOpacity>
-            <Text className="text-gray-300 text-sm">{booking.mechanic?.garage_location}</Text>
           </View>
-
-          {/* Timestamps - ADDED BACK */}
-          <View className="mt-2 pt-3 border-t border-gray-700">
-            <Text className="text-gray-400 text-xs">
-              Created: {new Date(booking.created_at).toLocaleString()}
-            </Text>
+          {/* Timestamps */}
+          <View className="flex-col items-end text-sm text-gray-500">
+            <Text>Created: {new Date(booking.created_at).toLocaleString()}</Text>
             {booking.updated_at && (
-              <Text className="text-gray-400 text-xs">
-                Updated: {new Date(booking.updated_at).toLocaleString()}
-              </Text>
+              <Text>Updated: {new Date(booking.updated_at).toLocaleString()}</Text>
             )}
           </View>
         </View>
 
         {/* Action Buttons */}
-        <View className="flex-row space-x-3 mt-4">
-          <TouchableOpacity 
-            className="flex-1 bg-blue-600 p-3 rounded-xl flex-row justify-center items-center"
+        <View className="flex-row justify-around mt-6">
+          <TouchableOpacity
+            className="flex-1 bg-blue-500 py-3 px-4 rounded-md items-center mx-2 shadow-md"
             onPress={() => handlePhoneCall(booking.customer?.phone, booking.customer?.name)}
           >
-            <Ionicons name="call" size={18} color="white" />
-            <Text className="text-white ml-2">Call Customer</Text>
+            <Ionicons name="call-outline" size={20} color="white" />
+            <Text className="text-white font-bold mt-1 text-xs">Call Customer</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity 
-            className="flex-1 bg-green-600 p-3 rounded-xl flex-row justify-center items-center"
+          <TouchableOpacity
+            className="flex-1 bg-blue-500 py-3 px-4 rounded-md items-center mx-2 shadow-md"
             onPress={() => handlePhoneCall(booking.mechanic?.phone, booking.mechanic?.name)}
           >
-            <Ionicons name="construct" size={18} color="white" />
-            <Text className="text-white ml-2">Call Mechanic</Text>
+            <Ionicons name="call-outline" size={20} color="white" />
+            <Text className="text-white font-bold mt-1 text-xs">Call Mechanic</Text>
           </TouchableOpacity>
         </View>
       </View>

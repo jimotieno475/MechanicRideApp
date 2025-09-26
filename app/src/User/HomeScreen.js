@@ -448,14 +448,14 @@ function HomeScreen() {
             </View>
             
             {/* Additional Services Button */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={navigateToServices}
               className="mt-4 bg-blue-600 py-3 rounded-xl border border-blue-500"
             >
               <Text className="text-white text-center text-lg font-semibold">
                 View All Services
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </>
         )}
       </View>

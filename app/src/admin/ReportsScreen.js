@@ -19,15 +19,8 @@ export default function ReportsScreen() {
   const navigation = useNavigation();
   const { admin } = useUser();
   
-  const [analytics, setAnalytics] = useState({
-    total_users: 0,
-    total_mechanics: 0,
-    total_bookings: 0,
-    active_bookings: 0,
-    pending_bookings: 0,
-    completed_bookings: 0,
-    recent_bookings: 0
-  });
+  // Removed analytics state
+
   const [fraudReports, setFraudReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,20 +28,7 @@ export default function ReportsScreen() {
   // Fetch reports data from backend
   const fetchReportsData = async () => {
     try {
-      // Fetch stats
-      const statsResponse = await fetch(`${API_URL}/admin/reports/stats`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!statsResponse.ok) {
-        throw new Error(`HTTP error! status: ${statsResponse.status}`);
-      }
-
-      const statsData = await statsResponse.json();
-      setAnalytics(statsData.stats);
+      // Removed stats fetch logic
 
       // Fetch fraud reports with detailed information
       const fraudResponse = await fetch(`${API_URL}/admin/reports/fraud-reports`, {
@@ -448,67 +428,12 @@ export default function ReportsScreen() {
 
   return (
     <SafeAreaView className="flex-1 p-5 bg-black">
-      <Text className="text-white text-2xl font-extrabold mb-5">Reports Dashboard</Text>
-
-      {/* Analytics Overview */}
-      <View className="flex-row flex-wrap justify-between mb-6">
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Users')}
-          className="w-[48%] bg-gray-800 p-4 rounded-xl mb-3"
-        >
-          <View>
-            <Ionicons name="people" size={22} color="white" />
-            <Text className="text-white font-bold mt-2 text-xl">{analytics.total_users}</Text>
-            <Text className="text-gray-400 text-sm">Total Users</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Mechanics')}
-          className="w-[48%] bg-gray-800 p-4 rounded-xl mb-3"
-        >
-          <View>
-            <Ionicons name="construct" size={22} color="white" />
-            <Text className="text-white font-bold mt-2 text-xl">{analytics.total_mechanics}</Text>
-            <Text className="text-gray-400 text-sm">Total Mechanics</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate('JobsAdmin')}
-          className="w-[48%] bg-gray-800 p-4 rounded-xl mb-3"
-        >
-          <View>
-            <Ionicons name="car" size={22} color="white" />
-            <Text className="text-white font-bold mt-2 text-xl">{analytics.total_bookings}</Text>
-            <Text className="text-gray-400 text-sm">Total Bookings</Text>
-          </View>
-        </TouchableOpacity>
-
-        <View className="w-[48%] bg-gray-800 p-4 rounded-xl mb-3">
-          <Ionicons name="time" size={22} color="white" />
-          <Text className="text-white font-bold mt-2 text-xl">{analytics.active_bookings}</Text>
-          <Text className="text-gray-400 text-sm">Active Bookings</Text>
-        </View>
-
-        {/* Additional Stats */}
-        <View className="w-[48%] bg-gray-800 p-4 rounded-xl mb-3">
-          <Ionicons name="hourglass" size={22} color="white" />
-          <Text className="text-white font-bold mt-2 text-xl">{analytics.pending_bookings}</Text>
-          <Text className="text-gray-400 text-sm">Pending</Text>
-        </View>
-
-        <View className="w-[48%] bg-gray-800 p-4 rounded-xl mb-3">
-          <Ionicons name="checkmark-circle" size={22} color="white" />
-          <Text className="text-white font-bold mt-2 text-xl">{analytics.completed_bookings}</Text>
-          <Text className="text-gray-400 text-sm">Completed</Text>
-        </View>
-      </View>
-
+      <Text className="text-white text-2xl font-extrabold mb-5">Fraud Reports Management</Text>
+      
       {/* Fraud Reports Section */}
       <View className="flex-row justify-between items-center mb-3">
-        <Text className="text-white text-lg font-semibold">Fraud Reports</Text>
-        <Text className="text-gray-400">{fraudReports.length} reports</Text>
+        <Text className="text-white text-lg font-semibold">Pending Reports ({fraudReports.filter(r => r.status === 'pending').length})</Text>
+        <Text className="text-gray-400">Total: {fraudReports.length} reports</Text>
       </View>
       
       {fraudReports.length === 0 ? (
